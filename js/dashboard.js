@@ -127,7 +127,7 @@ class AccessibilityDashboard {
 
     updateDisplay() {
         // Update stats
-        document.getElementById('violationsCount').textContent = this.data.violations;
+        document.getElementById('violationsCount').textContent = this.data.violations.length;
         document.getElementById('passedCount').textContent = this.data.passed;
         document.getElementById('incompleteCount').textContent = this.data.incomplete;
         document.getElementById('overallScore').textContent = `${this.data.score}%`;
@@ -291,29 +291,57 @@ class AccessibilityDashboard {
         `;
         
         try {
-            // Simulate analysis process
-            await this.delay(3000);
-            
-            // Update data with new results
-            this.data.violations = Math.max(1, this.data.violations + Math.floor(Math.random() * 3) - 1);
-            this.data.passed = this.data.passed + Math.floor(Math.random() * 5) - 2;
-            this.data.score = Math.min(100, Math.max(60, this.data.score + Math.floor(Math.random() * 10) - 5));
+            // Call backend API for real analysis
+            const response = await fetch('http://localhost:4000/api/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: this.data.siteUrl.startsWith('http') ? this.data.siteUrl : `https://${this.data.siteUrl}` })
+            });
+            if (!response.ok) throw new Error('Backend analysis failed');
+            const axeResults = await response.json();
+
+            // Map Axe results to dashboard data
+            this.data.violations = axeResults.violations.length;
+            this.data.passed = axeResults.passes ? axeResults.passes.length : 0;
+            this.data.incomplete = axeResults.incomplete ? axeResults.incomplete.length : 0;
+            this.data.score = this.calculateScore(axeResults);
             this.data.lastScan = new Date();
-            
+            this.data.violations = axeResults.violations.map(v => ({
+                id: v.id,
+                title: v.help,
+                description: v.description,
+                impact: v.impact || 'minor',
+                nodes: v.nodes.length,
+                guideline: v.tags && v.tags.length ? v.tags.join(', ') : '',
+                example: {
+                    element: v.nodes[0]?.html || '',
+                    code: v.nodes[0]?.html || '',
+                    failure: v.nodes[0]?.failureSummary || v.help
+                },
+                learnMoreUrl: v.helpUrl
+            }));
+
             // Update display
             this.updateDisplay();
-            
             this.showToast('Analysis completed successfully!', 'success');
         } catch (error) {
             this.showToast('Analysis failed. Please try again.', 'error');
         } finally {
             // Hide loading overlay
             loadingOverlay.style.display = 'none';
-            
             // Restore button
             button.disabled = false;
             button.innerHTML = originalText;
         }
+    }
+
+    calculateScore(axeResults) {
+        // Simple scoring: 100 - (violations * 5), min 0, max 100
+        const v = axeResults.violations.length;
+        let score = 100 - v * 5;
+        if (score < 0) score = 0;
+        if (score > 100) score = 100;
+        return score;
     }
 
     handleViolationCardClick(event) {
