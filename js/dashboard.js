@@ -291,7 +291,7 @@ class AccessibilityDashboard {
         `;
         
         try {
-            // Call backend API for real analysis
+            // Always use the Render backend for analysis
             const response = await fetch('https://a11y-backend.onrender.com/api/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
