@@ -292,7 +292,7 @@ class AccessibilityDashboard {
         
         try {
             // Call backend API for real analysis
-            const response = await fetch('http://localhost:4000/api/analyze', {
+            const response = await fetch('https://a11y-backend.onrender.com/api/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: this.data.siteUrl.startsWith('http') ? this.data.siteUrl : `https://${this.data.siteUrl}` })
